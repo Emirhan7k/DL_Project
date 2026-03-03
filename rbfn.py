@@ -24,3 +24,40 @@ def to_tensor(data,target):
 X_train, y_train = to_tensor(X_train, y_train)
 X_test, y_test = to_tensor(X_test, y_test)
 
+rbf_kernel = lambda X,centers,beta: torch.exp(-beta * torch.cdist(X, centers)**2)
+
+class RBFN(nn.Module):
+    def __init__(self, input_dim, num_centers, output_dim):
+        super(RBFN, self).__init__()
+        self.centers = nn.Parameter(torch.randn(num_centers, input_dim))
+        self.beta = nn.Parameter(torch.ones(1)**2)
+        self.linear = nn.Linear(num_centers, output_dim)
+
+    def forward(self, x):
+        phi = rbf_kernel(x, self.centers, self.beta)
+        out = self.linear(phi)
+        return out
+    
+
+model = RBFN(input_dim=4, num_centers=10, output_dim=3)
+criterion = nn.CrossEntropyLoss()
+optimizer = optim.Adam(model.parameters(), lr=0.01)
+num_epochs = 100
+for epoch in range(num_epochs):
+    model.train()
+    optimizer.zero_grad()
+    outputs = model(X_train)
+    loss = criterion(outputs, y_train)
+    loss.backward()
+    optimizer.step()
+
+    if (epoch+1) % 10 == 0:
+        print(f'Epoch [{epoch+1}/{num_epochs}], Loss: {loss.item():.4f}')
+
+with torch.no_grad():
+    model.eval()
+    test_outputs = model(X_test)
+    _, predicted = torch.max(test_outputs, 1)
+    accuracy = (predicted == y_test).float().mean()
+    print(f'Test Accuracy: {accuracy.item():.4f}')
+    
