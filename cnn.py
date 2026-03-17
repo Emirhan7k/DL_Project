@@ -15,10 +15,10 @@ def get_data_loaders(batch_size: int = 64) -> tuple:
     ])
 
     train_dataset = torchvision.datasets.CIFAR10(
-        root='./data1', train=True, download=True, transform=transform
+        root='./data', train=True, download=True, transform=transform
     )
     test_dataset = torchvision.datasets.CIFAR10(
-        root='./data1', train=False, download=True, transform=transform
+        root='./data', train=False, download=True, transform=transform
     )
 
     train_loader = torch.utils.data.DataLoader(
