@@ -16,12 +16,12 @@ transforms = transforms.Compose([
 trainset = torchvision.datasets.CIFAR10(root='./data', train=True, download=True, transform=transforms)
 testset = torchvision.datasets.CIFAR10(root='./data', train=False, download=True, transform=transforms)
 
-trainloader = torch.utils.data.DataLoader(trainset, batch_size=64, shuffle=True)
-testloader = torch.utils.data.DataLoader(testset, batch_size=64, shuffle=False)
+train_loader = torch.utils.data.DataLoader(trainset, batch_size=64, shuffle=True)
+test_loader = torch.utils.data.DataLoader(testset, batch_size=64, shuffle=False)
 
-class ResiudalBlock(nn.Module):
+class ResidualBlock(nn.Module):
     def __init__(self, in_channels, out_channels, stride=1, downsample=None):
-        super(ResiudalBlock, self).__init__()
+        super(ResidualBlock, self).__init__()
         self.conv1 = nn.Conv2d(in_channels, out_channels, kernel_size=3, stride=stride, padding=1,bias=False)
         self.bn1 = nn.BatchNorm2d(out_channels)
         self.relu = nn.ReLU(inplace=True)
@@ -71,10 +71,10 @@ class CustomResNet(nn.Module):
                 nn.BatchNorm2d(out_channels)
             )
         
-        layers = [ResiudalBlock(in_channels, out_channels, stride, downsample)]
+        layers = [ResidualBlock(in_channels, out_channels, stride, downsample)]
         
         for _ in range(1, blocks):
-            layers.append(ResiudalBlock(out_channels, out_channels))
+            layers.append(ResidualBlock(out_channels, out_channels))
 
         return nn.Sequential(*layers)
     
@@ -94,3 +94,48 @@ class CustomResNet(nn.Module):
         x = self.fc(x)
 
         return x
+
+use_custom_model = True
+
+if use_custom_model:
+    model = CustomResNet(num_classes=10).to(device)
+else:
+    model = models.resnet18(pretrained=True)
+    model_ftrs = model.fc.in_features
+    model.fc = nn.Sequential(
+        nn.Linear(model_ftrs, 512),
+        nn.ReLU(),
+        nn.Dropout(0.5),
+        nn.Linear(512, 10)
+    )
+    model = model.to(device)
+
+criterion = nn.CrossEntropyLoss()
+optimizer = optim.Adam(model.parameters(), lr=0.001)
+num_epochs = 1
+
+for epoch in tqdm(range(num_epochs)):
+    model.train()
+    running_loss = 0.0
+    for images, labels in tqdm(train_loader):
+        images, labels = images.to(device), labels.to(device)
+
+        optimizer.zero_grad()
+        outputs = model(images)
+        loss = criterion(outputs, labels)
+        loss.backward()
+        optimizer.step()
+        running_loss += loss.item()
+    print(f'Epoch [{epoch+1}/{num_epochs}], Loss: {running_loss/len(train_loader):.4f}')
+
+model.eval()
+correct = 0
+total = 0
+with torch.no_grad():
+    for images, labels in tqdm(test_loader):
+        images, labels = images.to(device), labels.to(device)
+        outputs = model(images)
+        _, predicted = torch.max(outputs.data, 1)
+        total += labels.size(0)
+        correct += (predicted == labels).sum().item()
+print(f'Accuracy of the model on the test images: {100 * correct / total:.2f}%')
