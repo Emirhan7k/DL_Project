@@ -350,7 +350,7 @@ class SimpleTransformer(nn.Module):
 model = SimpleTransformer(vocab_size=len(vocab), embed_dim=32, num_heads=4, hidden_dim=64, num_layers=4, num_classes=1)
 
 criterion = nn.BCELoss()
-optimizer = optim.Adam(model.parameters(), lr=0.005)
+optimizer = optim.Adam(model.parameters(), lr=0.001)
 
 num_epochs = 300
 
